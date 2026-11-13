@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Dataset
+data/
+*.nii
+*.nii.gz
+*.dcm
+
+# Model checkpoints
+*.pth
+*.pt
+*.ckpt
+
+# Temporary files
+.DS_Store
+Thumbs.db
