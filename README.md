@@ -19,21 +19,6 @@ The repository includes both Python scripts and a notebook. The Python entry poi
 
 Alzheimers-CNN-Classification/
 │
-├── main.py
-├── dataset.py
-├── models.py
-├── train.py
-├── evaluate.py
-├── requirements.txt
-├── .gitignore
-├── data/                                           # put data including two folders named AD and MCI here 
-│   ├── AD/
-│   └── MCI/
-├── notebooks/
-│   └── Alzheimers_Classification_ADNI2.ipynb       # coursework notebook(s)
-├── results/                                        # generated locally when running
-│   ├── ...
-└── README.md
 ├── figures/
 │   └── notebooks/
 │       ├── 01_Five_sample_MCI_class.png
@@ -48,6 +33,18 @@ Alzheimers-CNN-Classification/
 │       ├── 10_training_model_test3_plot.png
 │       ├── 11_ROC_curve_model_test3.png
 │       └── 12_confusion_matrix_model_test3.png
+│
+├── notebooks/
+│   └── Alzheimers_Classification_ADNI2.ipynb
+│
+├── dataset.py
+├── models.py
+├── train.py
+├── evaluate.py
+├── main.py
+├── requirements.txt
+├── .gitignore
+└── README.md
 
 ```
 
@@ -221,24 +218,27 @@ class_to_idx = {
 }
 ```
 
-1. Test-set performance comparison
+### Test-set performance comparison
 
-Metric	Proposed Model	Testing Model 2	Testing Model 3
-Test Loss	0.2185	0.2849	0.1579
-Accuracy	90.36%	87.95%	96.39%
-Precision (MCI)	82.93%	82.05%	92.11%
-Recall (MCI)	97.14%	91.43%	100.00%
-F1-score (MCI)	89.47%	86.49%	95.89%
-AUC	98.57%	96.25%	98.57%
+| Metric | Proposed Model | Testing Model 2 | Testing Model 3 |
+|:---|:---:|:---:|:---:|
+| Test Loss | 0.2185 | 0.2849 | 0.1579 |
+| Accuracy | 90.36% | 87.95% | 96.39% |
+| Precision (MCI) | 82.93% | 82.05% | 92.11% |
+| Recall (MCI) | 97.14% | 91.43% | 100.00% |
+| F1-score (MCI) | 89.47% | 86.49% | 95.89% |
+| ROC-AUC | 98.57% | 96.25% | 98.57% |
 
 The positive class for precision, recall, and F1-score is MCI (MCI = 1). The test set contains 83 images: 48 AD and 35 MCI.
 
-2. Confusion matrices
 
-Model	Actual AD → Predicted AD	Actual AD → Predicted MCI	Actual MCI → Predicted AD	Actual MCI → Predicted MCI
-Proposed Model	41	7	1	34
-Testing Model 2	41	7	3	32
-Testing Model 3	45	3	0	35
+### Confusion matrices
+
+| Model | Actual AD → Predicted AD | Actual AD → Predicted MCI | Actual MCI → Predicted AD | Actual MCI → Predicted MCI |
+|:---|:---:|:---:|:---:|:---:|
+| Proposed Model | 41 | 7 | 1 | 34 |
+| Testing Model 2 | 41 | 7 | 3 | 32 |
+| Testing Model 3 | 45 | 3 | 0 | 35 |
 
 These values use the row order actual AD, actual MCI and column order predicted AD, predicted MCI.
 
@@ -248,7 +248,7 @@ These values use the row order actual AD, actual MCI and column order predicted 
 > table are from the separate `main.py` implementation and may differ.
 
 
-### Proposed CNN
+### Testing Proposed Model (Model 1) 
 
 **Training and Validation Curves**
 
@@ -262,7 +262,7 @@ These values use the row order actual AD, actual MCI and column order predicted 
 
 ![Proposed CNN confusion matrix](figures/notebooks/06_confusion_matrix_proposed_model.png)
 
-### Test CNN 1
+### Testing Model 2
 
 **Training and Validation Curves**
 
@@ -276,7 +276,8 @@ These values use the row order actual AD, actual MCI and column order predicted 
 
 ![Test CNN 1 confusion matrix](figures/notebooks/09_confusion_matrix_model_test2.png)
 
-### Test CNN 2
+
+### Testing Model 3
 
 **Training and Validation Curves**
 
@@ -297,9 +298,9 @@ These values use the row order actual AD, actual MCI and column order predicted 
 The results should be interpreted in light of the following limitations:
 
 1. **Image-level versus patient-level separation.** A stratified image-level split preserves class proportions, but it does not guarantee that images from the same participant are confined to one subset. If multiple images from one participant are present, a participant-level split is preferable to reduce the risk of data leakage. Participant identifiers must be available to implement this correctly.
-2. **Preprocessing and pixel scaling.** The image pipeline converts images through PIL. Dividing an array by 255 before converting it to a PIL image does not, by itself, guarantee that the tensors supplied to the CNN remain in the `[0, 1]` range. Verify the dtype and minimum/maximum values of the final training, validation, and test tensors, and ensure that all three subsets use consistent preprocessing.
+2. **Preprocessing and pixel scaling.** The final tensor values should be checked to ensure that image preprocessing and pixel scaling are consistent across training, validation, and test subsets.
 3. **Random augmentation.** Random transformations can produce different augmented samples across runs. For reproducibility, seed Python, NumPy, and PyTorch, and document the split and augmentation settings.
-4. **Metric aggregation.** Averaging batch accuracies gives each batch equal weight. If the last batch is smaller, this can differ slightly from accuracy calculated over all samples. Sample-weighted aggregation is preferable for epoch-level reporting. The test-set metric should also aggregate predictions across every test batch.
+4. **Metric aggregation.** Epoch-level metrics should be calculated using all samples rather than an unweighted average of batch-level metrics, particularly when the final batch contains fewer samples.
 5. **Validation labels.** Labels should use the same class-to-index mapping throughout training, validation, and testing. Do not fit a new `LabelEncoder` independently on each batch; use the integer labels already assigned by the dataset.
 6. **Small held-out test set.** Performance measured on a small test subset can have substantial uncertainty and may not represent performance on a new cohort.
 7. **External generalization.** Evaluation on one dataset and one split does not establish generalization to other hospitals, scanners, acquisition protocols, or independent patient cohorts.
@@ -307,17 +308,45 @@ The results should be interpreted in light of the following limitations:
 9. **Coursework scope.** This implementation is not a complete clinical validation study. It does not establish diagnostic utility, clinical safety, or readiness for deployment.
 10. **Additional experimental comparisons.** Do not assume that alternative train/test split ratios, dropout experiments, or initialization comparisons have been completed unless the corresponding experiments and results are present in the code and saved outputs.
 
-## Reproducibility checklist
 
-Before reporting or comparing results, document:
+## Reproducibility and Environment
 
-- The dataset version and selection criteria (without sharing restricted data).
-- The number of original images per class and the number assigned to each split.
-- Whether splitting was performed before augmentation.
-- The random seeds used for splitting, augmentation, and model training.
-- The preprocessing steps and final input tensor range.
-- The model architecture and training hyperparameters.
-- The test-set metrics and the exact run from which they were obtained.
+### Software environment
+
+The project was implemented using Python and PyTorch. The following package versions were installed in the Google Colab environment:
+
+| Package / Component | Version |
+|:---|:---|
+| Python | 3.13.16 |
+| PyTorch | 2.14.1+cu130 |
+| Torchvision | 0.29.1+cu130 |
+| NumPy | 2.4.6 |
+| Pandas | 2.2.3 |
+| Matplotlib | 3.10.0 |
+| Seaborn | 0.13.2 |
+| OpenCV | 5.0.0.93 |
+| Pillow | 11.3.0 |
+| tqdm | 4.67.3 |
+| scikit-learn | 1.6.1 |
+
+**Compute environment:** Google Colab with CUDA-enabled GPU when available. The code also supports CPU execution.
+
+### Computational Environment
+
+- **Platform:** Google Colab
+- **GPU:** NVIDIA Tesla T4
+- **Python:** 3.13.16
+- **PyTorch:** CUDA-enabled build (`2.14.1+cu130`)
+- **Device selection:** The implementation automatically uses CUDA when available and falls back to CPU otherwise.
+
+
+### Reproducibility considerations
+
+- Data splitting is performed on the original images before augmentation.
+- Augmentation is applied exclusively to the training subset.
+- Validation and test subsets are kept separate from the augmentation process.
+- Random seeds and data-splitting settings should be recorded for reproducible experiments.
+- Test-set metrics should be reported together with the corresponding model configuration and data split.
 
 ## Disclaimer
 
