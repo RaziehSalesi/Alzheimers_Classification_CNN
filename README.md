@@ -1,287 +1,324 @@
-# ADNI-Based Alzheimer's Disease Classification with CNNs
+# Alzheimer’s Disease Classification Using CNNs
 
-This repository contains the implementation for **Question 1 of Homework
-2** in the Neural Networks and Deep Learning course at the University of
-Tehran.
+A PyTorch implementation of **Deep Learning Homework** for the Neural Networks and Deep Learning course at the University of Tehran.
 
-The project investigates binary classification of brain MRI images from
-the Alzheimer's Disease Neuroimaging Initiative (ADNI) dataset. Three
-convolutional neural network (CNN) architectures are implemented and
-evaluated to distinguish between:
+This project explores binary classification of brain MRI images from the Alzheimer’s Disease Neuroimaging Initiative (ADNI), distinguishing between:
 
--   **AD** --- Alzheimer's disease
--   **MCI** --- Mild cognitive impairment
+- **AD** — Alzheimer’s disease
+- **MCI** — Mild cognitive impairment
 
-> **Scope:** This repository currently covers Question 1 (ADNI
-> classification). It does not contain the VGG16/ResNet50 experiments
-> from Question 2.
+Three CNN architectures are implemented and compared. The project is an educational coursework exercise, not a clinical diagnostic system.
 
-## Project overview
+## Project scope
 
-The notebook covers the following workflow:
+The repository includes both Python scripts and a notebook. The Python entry point is `main.py`; the notebook is retained as a record of the original coursework workflow and outputs.
 
-1.  Load the ADNI image dataset and its class labels.
-2.  Resize images to `64 × 64`.
-3.  Apply offline data augmentation to the training images.
-4.  Split the original images into training, validation, and test
-    subsets using stratified sampling.
-5.  Implement and train three CNN architectures.
-6.  Evaluate the trained models using accuracy, loss, ROC curves,
-    confusion matrices, precision, recall, F1/DCS, and AUC.
+## Repository structure
+
+```text
+
+Alzheimers-CNN-Classification/
+│
+├── main.py
+├── dataset.py
+├── models.py
+├── train.py
+├── evaluate.py
+├── requirements.txt
+├── .gitignore
+├── data/                                           # put data including two folders named AD and MCI here 
+│   ├── AD/
+│   └── MCI/
+├── notebooks/
+│   └── Alzheimers_Classification_ADNI2.ipynb       # coursework notebook(s)
+├── results/                                        # generated locally when running
+│   ├── ...
+└── README.md
+├── figures/
+│   └── notebooks/
+│       ├── 01_Five_sample_MCI_class.png
+│       ├── 02_Five_sample_AD_class.png
+│       ├── 03_Augmented_images.png
+│       ├── 04_training_proposed_model_plot.png
+│       ├── 05_ROC_curve_proposed_model.png
+│       ├── 06_confusion_matrix_proposed_model.png
+│       ├── 07_training_model_test2_plot.png
+│       ├── 08_ROC_curve_model_test2.png
+│       ├── 09_confusion_matrix_model_test2.png
+│       ├── 10_training_model_test3_plot.png
+│       ├── 11_ROC_curve_model_test3.png
+│       └── 12_confusion_matrix_model_test3.png
+
+```
+
+The exact contents of `notebooks/` and `results/` depend on the files retained in your local working copy. Generated results should only be committed if they are appropriate to share and do not contain private or identifiable data.
 
 ## Dataset
 
-The notebook expects the dataset to be organized into two class folders:
+The code expects the dataset root directory to contain one subdirectory per class:
 
-``` text
-Alzheimer_s_Disease_Neuroimaging_ADNI_Dataset/
+```text
+data/
 ├── AD/
 └── MCI/
 ```
 
-The dataset used in the saved notebook run contains **1,654 images**:
+The dataset is **not included** in this repository. ADNI data access is governed by ADNI's data-use and access requirements. Obtain the data through the authorized ADNI process and do not redistribute it through this repository.
 
-  Class         Number of original images
-  ----------- ---------------------------
-  AD                                  965
-  MCI                                 689
-  **Total**                     **1,654**
+### Configure the dataset path
 
-The dataset is not included in this repository. Users must obtain the
-data from an authorized source and configure the notebook's dataset
-path.
+In `main.py`, set `DATA_DIR` to the location of the dataset root directory. For example, when the dataset folder is alongside `main.py`:
 
-## Preprocessing and data augmentation
+```python
+DATA_DIR = Path("data")
+```
 
-Images are resized from `256 × 256` to `64 × 64` pixels.
+If the data is stored elsewhere (for example, in Google Drive), use the corresponding absolute path.
 
-The notebook applies offline augmentation to the training subset. Four
-augmented images are generated for each original training image, giving
-five training images per original image (the original plus four
-augmented versions).
+## Method overview
 
-The implemented augmentation operations are:
+The workflow implemented for this task includes:
 
--   Random horizontal flipping
--   Shearing
--   Translation (shifting)
--   Random rotation (up to 45 degrees)
--   Random resized cropping (zooming)
+1. Loading image paths and class labels from the AD and MCI folders.
+2. Resizing input images to **64 × 64** pixels.
+3. Splitting the data into training, validation, and test subsets using stratified sampling.
+4. Applying offline augmentation to training images.
+5. Training and comparing three CNN architectures.
+6. Evaluating the models on the held-out test subset and saving results.
 
-**Important implementation note:** The current preprocessing code
-divides pixel values by 255 and then converts the images back to PIL
-images. This conversion restores integer pixel values, so the arrays
-subsequently passed to the model are not guaranteed to remain in the
-`[0, 1]` range. The current notebook should therefore not be described
-as performing effective `[0, 1]` normalization.
+The split should be performed on the original images **before** augmentation. Augmented copies should be created from the training subset only; validation and test images should not be augmented. This avoids placing augmented versions of the same source image in different subsets. Check that the current implementation follows this order when modifying the pipeline.
 
-### Data splitting
+### Data augmentation
 
-The split is performed on the original image paths before augmentation.
-Only the training subset is augmented; validation and test images are
-not augmented.
+The augmentation operations used in the coursework include:
 
-The saved run uses:
+- Random horizontal flipping
+- Shearing
+- Translation (shifting)
+- Rotation (up to 45 degrees)
+- Random resized cropping (zooming)
 
--   Test set: 5% of the original dataset
--   Validation set: 10% of the remaining 95%
--   Training set: the remaining original images
+Four augmented versions are generated per original training image, in addition to the original image, when the offline augmentation routine is configured this way. The exact augmented sample count depends on the training split and the implementation's augmentation settings.
 
-  Subset         Original images   Images after augmentation
-  ------------ ----------------- ---------------------------
-  Training                 1,413                       7,065
-  Validation                 158                         158
-  Test                        83                          83
 
-Stratified splitting is used to preserve class proportions.
+
+## Dataset Examples and Augmentation
+
+### Sample MRI Images
+
+The following figures show examples of MRI images from the two classes used in this classification task.
+
+**Mild Cognitive Impairment (MCI)**
+
+![Sample MCI images](figures/notebooks/01_Five_sample_MCI_class.png)
+
+**Alzheimer's Disease (AD)**
+
+![Sample AD images](figures/notebooks/02_Five_sample_AD_class.png)
+
+### Data Augmentation
+
+To increase the diversity of the training data, several augmentation techniques were applied to the original training images.
+
+![Augmented MRI images](figures/notebooks/03_Augmented_images.png)
+
 
 ## CNN architectures
 
-Three CNN architectures are implemented:
+The project compares three CNN models:
 
-### 1. Proposed Model
+1. **Proposed Model**
+2. **Testing Model 2**
+3. **Testing Model 3**
 
--   Four convolutional layers
--   ReLU activation functions
--   Two max-pooling layers
--   Fully connected layers with 128 and 64 units
--   Two output units for binary classification
+The model definitions are in `models.py`. Refer to that file as the source of truth for the precise layer configuration; the architectures should not be inferred from model names alone.
 
-### 2. Testing Model 1
-
--   Two convolutional layers
--   Batch normalization and ReLU activations
--   Two max-pooling operations
--   A fully connected layer with 128 units
--   Two output units
-
-### 3. Testing Model 2
-
--   Two convolutional layers
--   Batch normalization and ReLU activations
--   One max-pooling operation
--   Fully connected layers with 128 and 64 units
--   Two output units
-
-Glorot/Xavier uniform initialization is applied to convolutional and
-linear layer weights. Biases are initialized to zero.
+Glorot/Xavier uniform initialization is used in the coursework model implementation. See `models.py` for the exact initialization applied to each layer.
 
 ## Training configuration
 
-The saved run uses the following configuration:
+The configured experiment described in the coursework uses the following settings. Confirm `main.py` if you change them:
 
-  Parameter               Value
-  ----------------------- ------------------------------------
-  Optimizer               Adam
-  Loss function           Cross-Entropy Loss
-  Learning rate           0.0001
-  Epochs                  30
-  Batch size              128
-  Input image size        64 × 64
-  Weight initialization   Xavier/Glorot uniform
-  Device                  CUDA when available; otherwise CPU
+| Parameter | Setting |
+|---|---:|
+| Input image size | 64 × 64 |
+| Optimizer | Adam |
+| Loss function | Cross-Entropy Loss |
+| Learning rate | 0.0001 |
+| Number of epochs | 30 |
+| Batch size | 128 |
+| Compute device | CUDA GPU when available; otherwise CPU |
 
-The notebook uses PyTorch `Dataset` and `DataLoader` classes to prepare
-and load batches.
+The model is trained using PyTorch. `main.py` selects the available compute device and coordinates the experiment.
 
-## Evaluation metrics
+## Running the project in Google Colab
 
-The models are evaluated on the held-out test subset using:
+The project can be run in Google Colab with a GPU runtime. You do not need a local GPU.
 
--   Accuracy
--   Precision
--   Recall
--   DCS (Dice Similarity Coefficient; in this binary classification
-    implementation it is calculated as the harmonic mean of precision
-    and recall, equivalent to the positive-class F1 score)
--   ROC curve and AUC
--   Confusion matrix
--   Classification report
--   Test loss
+### 1. Mount Google Drive
 
-The positive class for the manually calculated precision, recall, and
-DCS metrics is class `1` (**MCI**), based on the notebook's mapping
-`AD = 0` and `MCI = 1`.
+If the project and dataset are stored in Google Drive, mount Drive:
+
+```python
+from google.colab import drive
+drive.mount("/content/drive")
+```
+
+### 2. Change to the project directory
+
+Update the path to match your Google Drive folder:
+
+```python
+%cd "/content/drive/MyDrive/-------"
+```
+
+### 3. Install dependencies
+
+```python
+!pip install -r requirements.txt
+```
+
+### 4. Select a GPU runtime
+
+In Colab, select **Runtime → Change runtime type → T4 GPU** (if available). Then check:
+
+```python
+import torch
+
+print("CUDA available:", torch.cuda.is_available())
+if torch.cuda.is_available():
+    print("GPU:", torch.cuda.get_device_name(0))
+```
+
+Colab GPU availability and type depend on the account, current resource availability, and session limits. If CUDA is unavailable, the code may run on CPU but training can take considerably longer.
+
+### 5. Configure the data path and run
+
+Make sure `DATA_DIR` in `main.py` points to the dataset root containing the `AD` and `MCI` folders. Then run:
+
+```python
+!python -u main.py
+```
+
+The script reports its progress in the cell output and saves generated outputs under `results/`, according to the paths configured in the code.
 
 ## Results
 
-The following values are taken from the saved outputs of the current
-notebook run. The test set contains 83 images (48 AD and 35 MCI).
+The Python pipeline saves experiment outputs in the `results/` directory. The exact files and numerical values depend on the run and the current code configuration.
 
-  Metric              Proposed Model   Testing Model 1   Testing Model 2
-  ----------------- ---------------- ----------------- -----------------
-  Test accuracy           **97.59%**            92.77%            96.39%
-  Precision (MCI)             97.14%            87.18%            94.44%
-  Recall (MCI)                97.14%            97.14%            97.14%
-  DCS / F1 (MCI)              97.14%            91.89%            95.77%
-  AUC                     **99.58%**            97.92%            99.17%
-  Test loss                   0.0777            0.2186            0.1313
+For reproducible reporting, record the run's data split, random seeds, package versions, model settings, and test metrics together. Do not copy numerical results from an earlier notebook run into a results table for a different `main.py` run unless you have confirmed that they came from the same data split and configuration.
 
-For this saved run, the Proposed Model achieved the highest test
-accuracy and AUC among the three architectures.
+## Evaluation
 
-These results are specific to this run and split. They should not be
-interpreted as a clinical performance claim or as evidence of
-generalization to independent patients or institutions.
+The evaluation code reports classification performance for the held-out test subset. Depending on the current implementation, saved outputs may include accuracy, precision, recall, F1-score, ROC-AUC, confusion matrix, classification report, and loss values.
 
-## Accuracy function and its limitation
+For binary classification, the label mapping used in the coursework is:
 
-The notebook retains the following batch-level accuracy function:
-
-``` python
-def accuracy_fn(pred, true):
-    pred = torch.argmax(pred, dim=1)
-    acc = (true == pred).float().mean().item()
-    return acc
+```python
+class_to_idx = {
+    "AD": 0,
+    "MCI": 1
+}
 ```
 
-This function correctly calculates the proportion of correctly
-classified samples **within one batch**.
+1. Test-set performance comparison
 
-However, the training and validation loops accumulate these batch
-accuracies and divide by the number of batches. This gives every batch
-equal weight, even when the final batch contains fewer samples than the
-others. As a result, the reported epoch-level training and validation
-accuracy can differ slightly from the sample-weighted accuracy over the
-complete subset.
+Metric	Proposed Model	Testing Model 2	Testing Model 3
+Test Loss	0.2185	0.2849	0.1579
+Accuracy	90.36%	87.95%	96.39%
+Precision (MCI)	82.93%	82.05%	92.11%
+Recall (MCI)	97.14%	91.43%	100.00%
+F1-score (MCI)	89.47%	86.49%	95.89%
+AUC	98.57%	96.25%	98.57%
 
-The function is retained to document the implementation used in this
-coursework. The test evaluation function uses a sample-weighted
-calculation.
+The positive class for precision, recall, and F1-score is MCI (MCI = 1). The test set contains 83 images: 48 AD and 35 MCI.
 
-## Running the notebook
+2. Confusion matrices
 
-The notebook was developed for Google Colab and currently mounts Google
-Drive.
+Model	Actual AD → Predicted AD	Actual AD → Predicted MCI	Actual MCI → Predicted AD	Actual MCI → Predicted MCI
+Proposed Model	41	7	1	34
+Testing Model 2	41	7	3	32
+Testing Model 3	45	3	0	35
 
-1.  Open the notebook in Google Colab.
+These values use the row order actual AD, actual MCI and column order predicted AD, predicted MCI.
 
-2.  Upload or make the ADNI dataset available in your Google Drive.
 
-3.  Update the dataset path in the data-loading cell:
+> **Note:** The figures below are from the original Jupyter Notebook
+> experiments. The numerical results reported in the model comparison
+> table are from the separate `main.py` implementation and may differ.
 
-    ``` python
-    path = '/content/drive/MyDrive/Data/Alzheimer_s_Disease_Neuroimaging_ADNI_Dataset'
-    ```
 
-4.  Run the notebook cells from top to bottom.
+### Proposed CNN
 
-5.  Save the notebook after execution so that the outputs and plots are
-    stored in the `.ipynb` file.
+**Training and Validation Curves**
 
-The notebook uses Python and the following main packages:
+![Proposed CNN training curves](figures/notebooks/04_training_proposed_model_plot.png)
 
--   PyTorch
--   Torchvision
--   NumPy
--   Pandas
--   Matplotlib
--   Seaborn
--   OpenCV
--   Pillow
--   scikit-learn
--   tqdm
+**ROC Curve**
 
-## Current limitations and possible improvements
+![Proposed CNN ROC curve](figures/notebooks/05_ROC_curve_proposed_model.png)
 
-The current notebook is a coursework implementation. The following
-points should be considered when interpreting or extending its results:
+**Confusion Matrix**
 
-1.  **Pixel scaling:** The current PIL conversion means that the
-    preprocessing pipeline does not reliably preserve `[0, 1]`
-    normalized pixel values.
-2.  **Epoch accuracy aggregation:** The retained `accuracy_fn` is
-    batch-correct, but averaging batch accuracies equally does not
-    account for a smaller final batch.
-3.  **Validation labels:** The validation loop applies `LabelEncoder`
-    separately to each batch even though the dataset already returns
-    integer class labels. Using the existing labels directly would avoid
-    unnecessary batch-wise re-encoding.
-4.  **Patient-level separation:** The current split is image-level. If
-    multiple images belong to the same patient, a patient-level split
-    should be considered to reduce the risk of data leakage.
-5.  **Additional homework experiments:** The current notebook does not
-    include the requested comparisons for alternative split ratios (0.3
-    and 0.5), dropout, or Glorot versus zero initialization. These
-    experiments should not be considered completed based on this
-    notebook alone.
-6.  **Reproducibility:** The augmentation operations use random
-    transformations. For reproducible experiments, random seeds should
-    be set for Python, NumPy, and PyTorch, and the data split and
-    environment should be documented.
+![Proposed CNN confusion matrix](figures/notebooks/06_confusion_matrix_proposed_model.png)
 
-## Repository contents
+### Test CNN 1
 
-``` text
-.
-├── README.md
-└── HW2_Q1_Razieh_100__best_0_0001_128_30.ipynb
-```
+**Training and Validation Curves**
 
-The ADNI dataset is not included.
+![Test CNN 1 training curves](figures/notebooks/07_training_model_test2_plot.png)
+
+**ROC Curve**
+
+![Test CNN 1 ROC curve](figures/notebooks/08_ROC_curve_model_test2.png)
+
+**Confusion Matrix**
+
+![Test CNN 1 confusion matrix](figures/notebooks/09_confusion_matrix_model_test2.png)
+
+### Test CNN 2
+
+**Training and Validation Curves**
+
+![Test CNN 2 training curves](figures/notebooks/10_training_model_test3_plot.png)
+
+**ROC Curve**
+
+![Test CNN 2 ROC curve](figures/notebooks/11_ROC_curve_model_test3.png)
+
+**Confusion Matrix**
+
+![Test CNN 2 confusion matrix](figures/notebooks/12_confusion_matrix_model_test3.png)
+
+
+
+## Limitations and considerations
+
+The results should be interpreted in light of the following limitations:
+
+1. **Image-level versus patient-level separation.** A stratified image-level split preserves class proportions, but it does not guarantee that images from the same participant are confined to one subset. If multiple images from one participant are present, a participant-level split is preferable to reduce the risk of data leakage. Participant identifiers must be available to implement this correctly.
+2. **Preprocessing and pixel scaling.** The image pipeline converts images through PIL. Dividing an array by 255 before converting it to a PIL image does not, by itself, guarantee that the tensors supplied to the CNN remain in the `[0, 1]` range. Verify the dtype and minimum/maximum values of the final training, validation, and test tensors, and ensure that all three subsets use consistent preprocessing.
+3. **Random augmentation.** Random transformations can produce different augmented samples across runs. For reproducibility, seed Python, NumPy, and PyTorch, and document the split and augmentation settings.
+4. **Metric aggregation.** Averaging batch accuracies gives each batch equal weight. If the last batch is smaller, this can differ slightly from accuracy calculated over all samples. Sample-weighted aggregation is preferable for epoch-level reporting. The test-set metric should also aggregate predictions across every test batch.
+5. **Validation labels.** Labels should use the same class-to-index mapping throughout training, validation, and testing. Do not fit a new `LabelEncoder` independently on each batch; use the integer labels already assigned by the dataset.
+6. **Small held-out test set.** Performance measured on a small test subset can have substantial uncertainty and may not represent performance on a new cohort.
+7. **External generalization.** Evaluation on one dataset and one split does not establish generalization to other hospitals, scanners, acquisition protocols, or independent patient cohorts.
+8. **Class and dataset characteristics.** Results may be affected by class imbalance, image selection, preprocessing choices, and possible correlations between images from the same participant.
+9. **Coursework scope.** This implementation is not a complete clinical validation study. It does not establish diagnostic utility, clinical safety, or readiness for deployment.
+10. **Additional experimental comparisons.** Do not assume that alternative train/test split ratios, dropout experiments, or initialization comparisons have been completed unless the corresponding experiments and results are present in the code and saved outputs.
+
+## Reproducibility checklist
+
+Before reporting or comparing results, document:
+
+- The dataset version and selection criteria (without sharing restricted data).
+- The number of original images per class and the number assigned to each split.
+- Whether splitting was performed before augmentation.
+- The random seeds used for splitting, augmentation, and model training.
+- The preprocessing steps and final input tensor range.
+- The model architecture and training hyperparameters.
+- The test-set metrics and the exact run from which they were obtained.
 
 ## Disclaimer
 
-This project was developed for educational purposes as part of a Neural
-Networks and Deep Learning course. It is not intended for clinical
-diagnosis or medical decision-making.
+This project was developed for educational purposes as part of a Neural Networks and Deep Learning course. It is not intended for clinical diagnosis, treatment decisions, or medical decision-making.

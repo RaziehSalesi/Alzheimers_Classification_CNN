@@ -49,7 +49,7 @@ from models import (
 # chnage the path to your data directory
 # It should contain two folders: AD and MCI.
 
-DATA_DIR = Path("Alzheimer_s_Disease_Neuroimaging_ADNI_Dataset")
+DATA_DIR = Path("data")
 
 BATCH_SIZE = 128
 EPOCHS = 30
